@@ -1,0 +1,9 @@
+FROM python:3.14-slim
+
+WORKDIR /app
+
+COPY worker.py workflows.py activities.py ./
+
+RUN pip install temporalio netmiko
+
+CMD ["python", "worker.py"]

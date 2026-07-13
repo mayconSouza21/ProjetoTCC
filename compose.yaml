@@ -1,0 +1,69 @@
+services:
+
+  temporal_db:
+    container_name: temporal_db
+    image: postgres:14
+    environment:
+      - POSTGRES_USER=temporal
+      - POSTGRES_PASSWORD=temporal
+      - POSTGRES_DB=temporal
+    restart: unless-stopped
+
+  temporal_server:
+    container_name: temporal_server
+    image: temporalio/auto-setup:latest
+    ports:
+      - "7233:7233"
+    environment:
+      - DB=postgres12
+      - POSTGRES_USER=temporal
+      - POSTGRES_PWD=temporal
+      - POSTGRES_SEEDS=temporal_db
+      - DB_PORT=5432
+      - TEMPORAL_ADDRESS=temporal_server:7233
+    depends_on:
+      - temporal_db
+    restart: unless-stopped
+
+  temporal_ui:
+    container_name: temporal_ui
+    image: temporalio/ui:latest
+    ports:
+      - "8233:8080"
+    environment:
+      - TEMPORAL_ADDRESS=temporal_server:7233
+    depends_on:
+      - temporal_server
+    restart: unless-stopped
+
+  mock_switch:
+    container_name: mock_switch
+    image: lscr.io/linuxserver/openssh-server:latest
+    environment:
+      - USER_NAME=admin
+      - USER_PASSWORD=admin
+      - PASSWORD_ACCESS=true
+    ports:
+      - "2222:2222"
+    restart: unless-stopped
+
+  api_webhook:
+    container_name: netbox_webhook
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    ports:
+      - "9000:9000"
+    depends_on:
+      - temporal_server
+    restart: unless-stopped
+
+  worker_gtic:
+    container_name: worker_netmiko
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    depends_on:
+      - temporal_server
+      - mock_switch
+    restart: unless-stopped
